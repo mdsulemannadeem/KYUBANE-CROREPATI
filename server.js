@@ -6,7 +6,7 @@ const cors = require('cors');
 const { Server } = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 const authMiddleware = require('./middleware/authMiddleware');
-const Poll = require('./models/Poll');
+const Poll = require('./models/poll');
 
 // --- Initialize App and Server ---
 const app = express();
