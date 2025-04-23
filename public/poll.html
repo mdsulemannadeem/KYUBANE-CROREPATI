@@ -65,7 +65,7 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search); // URL se parameters ko parse karna
     const pollId = urlParams.get('pollId'); // Poll ID ko get karna
-    const socket = io("https://kyubane-crorepati.onrender.com"); // Socket.io connection establish karna
+    const socket = io(); // Socket.io connection establish karna
     let selectedOption = null; // Selected option ko store karne ke liye variable
     let pieChart, doughnutChart; // Charts ko store karne ke liye variables
 
