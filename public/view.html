@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Polls</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .poll-card {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .poll-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .poll-question {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .poll-options {
+            list-style: none;
+            padding: 0;
+        }
+        .poll-option {
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: #fff;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .poll-option-bar {
+            height: 8px;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        .poll-date {
+            font-size: 0.8rem;
+            color: #777;
+            margin-top: 10px;
+        }
+        .poll-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            font-weight: bold;
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        .no-polls {
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            color: #777;
+        }
+        .loading {
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <div id="nav">
+            <h1>Poll Creator</h1>
+            <div id="navbar">
+              <ul>
+                
+                <li><a href="view.html" id="viewPollLink">View Poll</a></li>
+                <li><a href="#" id="createPollLink">Create Poll</a></li>
+              </ul>
+            </div>
+            <button>Login</button>
+            
+          </div>
+        
+        <div id="content">
+            <h2>Your Created Polls</h2>
+            <div id="pollsContainer">
+                <!-- Polls will be dynamically loaded here -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('You must be logged in to view your polls.');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const pollsContainer = document.getElementById('pollsContainer');
+            pollsContainer.innerHTML = '<div class="loading">Loading your polls...</div>';
+
+            try {
+                const response = await fetch('/api/polls', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to fetch polls');
+                }
+
+                const polls = await response.json();
+                console.log('Fetched polls:', polls);
+
+                if (polls.length === 0) {
+                    pollsContainer.innerHTML = '<div class="no-polls">You haven\'t created any polls yet. <a href="create.html">Create your first poll</a></div>';
+                    return;
+                }
+
+                pollsContainer.innerHTML = ''; // Clear loading message
+                
+                polls.forEach(poll => {
+                    console.log('Processing poll:', poll);
+                    let optionsEntries;
+                    if (poll.options instanceof Map) {
+                        optionsEntries = Array.from(poll.options.entries());
+                    } else {
+                        optionsEntries = Object.entries(poll.options);
+                    }
+                    
+                    const totalVotes = optionsEntries.reduce((sum, [_, votes]) => sum + votes, 0);
+                    const pollElement = document.createElement('div');
+                    pollElement.classList.add('poll-card');
+                    pollElement.setAttribute('data-poll-id', poll._id);
+
+                    // Format date
+                    const createdDate = new Date(poll.createdAt);
+                    const formattedDate = createdDate.toLocaleDateString() + ' ' + createdDate.toLocaleTimeString();
+
+                    pollElement.innerHTML = `
+                        <h3 class="poll-question">${poll.question}</h3>
+                        <ul class="poll-options">
+                            ${optionsEntries.map(([option, votes]) => {
+                                const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                                return `
+                                    <li class="poll-option">
+                                        <div>
+                                            <div>${option}</div>
+                                            <div class="poll-option-bar" style="width: ${percentage}%"></div>
+                                        </div>
+                                        <div>${votes} votes (${percentage}%)</div>
+                                    </li>
+                                `;
+                            }).join('')}
+                        </ul>
+                        <div class="poll-date">Created on: ${formattedDate}</div>
+                        <div class="poll-actions">
+                            <a href="poll.html?pollId=${poll._id}" class="btn btn-primary">View Details</a>
+                            <button class="btn btn-secondary" onclick="sharePoll('${poll._id}')">Share</button>
+                            <button class="btn btn-danger" onclick="deletePoll('${poll._id}')">Delete</button>
+                        </div>
+                    `;
+
+                    pollsContainer.appendChild(pollElement);
+                });
+            } catch (err) {
+                console.error('Error details:', err);
+                pollsContainer.innerHTML = `<div class="no-polls">Failed to load polls: ${err.message}. Please try again later.</div>`;
+            }
+            
+            // Logout functionality
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                localStorage.removeItem('token');
+                window.location.href = 'login.html';
+            });
+        });
+        
+        function sharePoll(pollId) {
+            const pollUrl = `${window.location.origin}/poll.html?pollId=${pollId}`;
+            navigator.clipboard.writeText(pollUrl)
+                .then(() => alert('Poll link copied to clipboard!'))
+                .catch(err => console.error('Failed to copy: ', err));
+        }
+
+        async function deletePoll(pollId) {
+            if (!confirm('Are you sure you want to delete this poll? This action cannot be undone.')) {
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch(`/api/polls/${pollId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to delete poll');
+                }
+
+                // Remove the poll card from the UI
+                const pollCard = document.querySelector(`[data-poll-id="${pollId}"]`);
+                if (pollCard) {
+                    pollCard.remove();
+                }
+
+                alert('Poll deleted successfully!');
+                // Refresh the page to update the polls list
+                window.location.reload();
+            } catch (err) {
+                console.error('Error deleting poll:', err);
+                alert(`Failed to delete poll: ${err.message}`);
+            }
+        }
+    </script>
+     <script>
+        document.getElementById("createPollLink").addEventListener("click", (e) => {
+          const token = localStorage.getItem("token");
+          if (!token) {
+            e.preventDefault(); // Prevent navigation
+            alert("You must be logged in to create a poll.");
+            window.location.href = "login.html"; // Redirect to login page
+          } else {
+            window.location.href = "create.html"; // Redirect to create poll page
+          }
+        });
+      </script>
+      <script>
+        document.getElementById("viewPollLink").addEventListener("click", (e) => {
+          const token = localStorage.getItem("token");
+          if (!token) {
+            e.preventDefault();
+            alert("You must be logged in to view polls.");
+            window.location.href = "login.html";
+          }
+        });
+      </script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Create Poll</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="main">
+    <div id="nav">
+      <h1>Poll Creator</h1>
+      <div id="navbar">
+        <ul>
+          
+          <li><a href="view.html" id="viewPollLink">View Poll</a></li>
+          <li><a href="#" id="createPollLink">Create Poll</a></li>
+        </ul>
+      </div>
+      <button>Login</button>
+      
+    </div>
+    <div id="content">
+      <h1>Welcome to Poll Creator</h1>
+      <div id="box">
+        <img src="download.gif" alt="">
+      </div>
+      
+      <button id="createPollButton">Create Poll</button>
+    </div>
+
+    <!---
+   
+   <div id="content">
+
+      <h1>Create a Poll</h1>
+
+      
+      <input type="text" id="pollQuestion" placeholder="Enter your poll question" />
+    
+    
+      <div id="pollOptions">
+        <input type="text" placeholder="Option 1" class="option" /><br>
+        <input type="text" placeholder="Option 2" class="option" /><br>
+      </div>
+      <div id="option">
+        <button onclick="addOption()">Add another option</button>
+        <button onclick="createPoll()">Create Poll</button>
+      </div>
+      <p id="pollLink"></p>
+      <button id="copyLinkButton" style="display: none;" onclick="copyPollLink()">Copy Poll Link</button>
+      <p id="pollMessage" style="display: none;"></p>
+    
+  
+    </div> 
+  -->
+  </div>
+  <script>
+    document.getElementById("createPollButton").addEventListener("click", () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("You must be logged in to create a poll.");
+        window.location.href = "login.html"; // Redirect to login page
+      } else {
+        window.location.href = "create.html"; // Redirect to create poll page
+      }
+    });
+  </script>
+  <script>
+    document.getElementById("createPollLink").addEventListener("click", (e) => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        e.preventDefault(); // Prevent navigation
+        alert("You must be logged in to create a poll.");
+        window.location.href = "login.html"; // Redirect to login page
+      } else {
+        window.location.href = "create.html"; // Redirect to create poll page
+      }
+    });
+  </script>
+  <script>
+    document.getElementById("viewPollLink").addEventListener("click", (e) => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        e.preventDefault();
+        alert("You must be logged in to view polls.");
+        window.location.href = "login.html";
+      }
+    });
+  </script>
+ 
+  <script src="script.js"></script>
+ 
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create poll</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+   <div id="main">
+    <div id="nav">
+      <h1>Poll Creator</h1>
+      <div id="navbar">
+        <ul>
+          
+          <li><a href="view.html" id="viewPollLink">View Poll</a></li>
+          <li><a href="#" id="createPollLink">Create Poll</a></li>
+        </ul>
+      </div>
+      <button>Login</button>
+      
+    </div>
+
+      <div id="content1">
+
+        <h1>Create a Poll</h1>
+  
+        
+        <input type="text" id="pollQuestion" placeholder="Enter your poll question" />
+      
+      
+        <div id="pollOptions">
+          <input type="text" placeholder="Option 1" class="option" /><br>
+          <input type="text" placeholder="Option 2" class="option" /><br>
+        </div>
+        <div id="option">
+          <button onclick="addOption()">Add another option</button>
+          <button onclick="createPoll()">Create Poll</button>
+        </div>
+        <p id="pollLink"></p>
+        <button id="copyLinkButton" style="display: none;" onclick="copyPollLink()">Copy Poll Link</button>
+        <p id="pollMessage" style="display: none;"></p>
+        <div id="qrCodeContainer" style="display: none; margin-top: 20px;"></div>
+      
+    
+      </div> 
+   </div> 
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script>
+        // Add another option input dynamically
+        function addOption() {
+  const pollOptions = document.getElementById('pollOptions');
+  const optionCount = pollOptions.querySelectorAll('input.option').length + 1; // Count only input elements
+  const newOption = document.createElement('input');
+  newOption.type = 'text';
+  newOption.placeholder = `Option ${optionCount}`; // Correct placeholder
+  newOption.classList.add('option');
+  pollOptions.appendChild(newOption);
+  pollOptions.appendChild(document.createElement('br'));
+}
+function createPoll() {
+  const question = document.getElementById('pollQuestion').value;
+  const options = Array.from(document.getElementsByClassName('option'))
+    .map(input => input.value)
+    .filter(option => option);
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Please log in to create a poll.");
+    window.location.href = "login.html";
+    return;
+  }
+
+  fetch('/create-poll', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ question, options })
+  })
+    .then(response => {
+      if (!response.ok) throw new Error("Unauthorized or invalid data");
+      return response.json();
+    })
+    .then(data => {
+      const pollLink = `http://localhost:3000/poll.html?pollId=${data.pollId}`;
+      document.getElementById('pollLink').innerText = pollLink;
+      document.getElementById('copyLinkButton').style.display = 'inline';
+      document.getElementById('pollMessage').innerText = 'Your poll has been created!';
+      document.getElementById('pollMessage').style.display = 'block';
+      document.getElementById('pollQuestion').style.display = 'none';
+      document.getElementById('pollOptions').style.display = 'none';
+      document.getElementById('option').style.display = 'none';
+
+      // Generate QR Code
+      const qrCodeContainer = document.getElementById('qrCodeContainer');
+      qrCodeContainer.style.display = 'block';
+      qrCodeContainer.innerHTML = ''; // Clear any existing QR code
+
+      const canvas = document.createElement('canvas'); // Create a canvas element
+      qrCodeContainer.appendChild(canvas); // Append the canvas to the container
+
+      QRCode.toCanvas(canvas, pollLink, function (error) {
+        if (error) {
+          console.error(error);
+          alert('Failed to generate QR code.');
+        }
+      });
+    })
+    .catch(err => {
+      alert("Failed to create poll. Are you logged in?");
+      console.error(err);
+    });
+}
+
+function copyPollLink() {
+  const pollLinkText = document.getElementById('pollLink').innerText;
+  navigator.clipboard.writeText(pollLinkText).then(() => {
+    alert('Poll link copied to clipboard!');
+  });
+}
+
+    </script>
+
+<script>
+  document.getElementById("createPollLink").addEventListener("click", (e) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      e.preventDefault(); // Prevent navigation
+      alert("You must be logged in to create a poll.");
+      window.location.href = "login.html"; // Redirect to login page
+    } else {
+      window.location.href = "create.html"; // Redirect to create poll page
+    }
+  });
+</script>
+<script>
+  document.getElementById("viewPollLink").addEventListener("click", (e) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      e.preventDefault();
+      alert("You must be logged in to view polls.");
+      window.location.href = "login.html";
+    }
+  });
+</script>
+</body>
+</html>

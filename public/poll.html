@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vote on Poll</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="main">
+    <div id="nav">
+      <h1>Poll Creator</h1>
+      <div id="navbar">
+        <ul>
+          
+          <li><a href="view.html" id="viewPollLink">View Poll</a></li>
+          <li><a href="#" id="createPollLink">Create Poll</a></li>
+        </ul>
+      </div>
+      <button>Login</button>
+      
+    </div>
+  
+    <div id="content3">
+      <h1 id="h1">Poll Voting</h1>
+      <div id="votingSection">
+        <div id="pollQuestion"></div> <!-- Yahan poll ka question dikhai dega -->
+        <div id="pollOptions"></div>  <!-- Yahan voting options buttons ke roop mein dikhai denge -->
+        <button id="submitVote">Submit Vote</button> <!-- Vote submit karne ka button -->
+      </div>
+    
+      <!-- Dashboard Section (Initially Hidden) -->
+      <div id="dashboardSection" style="display: none;">
+        <h2>Poll Results</h2>
+        <div id="resultsContainer"></div> <!-- Yahan poll results dikhai denge -->
+        
+        <!-- Add chart type selector -->
+        <div style="margin: 20px 0;">
+          <label>Select Chart Type:</label>
+          <select id="chartTypeSelector" onchange="updateChartType()">
+            <option value="pie">Pie Chart</option>
+            <option value="doughnut">Doughnut Chart</option>
+          </select>
+        </div>
+    
+        <!-- Update charts container to show one at a time -->
+        <div id="chartsContainer" style="margin-top: 20px;">
+          <div id="pieChartContainer" style="width: 400px;">
+            <canvas id="pieChart"></canvas> <!-- Pie chart ka canvas -->
+          </div>
+          <div id="doughnutChartContainer" style="width: 400px; display: none;">
+            <canvas id="doughnutChart"></canvas> <!-- Doughnut chart ka canvas -->
+          </div>
+        </div>
+      </div>
+  
+
+    </div>
+    <!-- Voting Section -->
+   
+  </div>
+ 
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search); // URL se parameters ko parse karna
+    const pollId = urlParams.get('pollId'); // Poll ID ko get karna
+    const socket = io(); // Socket.io connection establish karna
+    let selectedOption = null; // Selected option ko store karne ke liye variable
+    let pieChart, doughnutChart; // Charts ko store karne ke liye variables
+
+    socket.emit('joinPoll', pollId); // Server ko batana ki user kis poll mein join ho raha hai
+
+    socket.on('pollData', (poll) => {
+      const pollQuestion = document.getElementById('pollQuestion');
+      pollQuestion.innerText = poll.question; // Poll question ko set karna
+      
+      const pollOptions = document.getElementById('pollOptions');
+      pollOptions.innerHTML = ''; // Poll options ko clear karna
+      for (let option in poll.options) {
+        const button = document.createElement('button');
+        button.innerText = option; // Button ka text option set karna
+
+        button.onclick = () => {
+          // Remove selected class from all buttons
+          pollOptions.querySelectorAll('button').forEach(btn => {
+           
+            btn.style.backgroundColor = ''; // Color reset karna
+          });
+          // Add selected class to clicked button
+
+          button.classList.add('selected'); // Clicked button ko selected class dena
+          button.style.backgroundColor = 'lightblue'; // Selected option ka color change karna
+          selectedOption = option; // Selected option ko store karna
+          document.getElementById('h1').style.display = 'none'; //
+          document.getElementById('submitVote').style.display = 'block'; // Submit button ko dikhana
+        };
+        pollOptions.appendChild(button); // Button ko options mein add karna
+      }
+    });
+
+    document.getElementById('submitVote').onclick = () => {
+      if (selectedOption) {
+        socket.emit('castVote', { pollId, option: selectedOption }); // Vote cast karna
+        // Disable voting section
+        document.querySelectorAll('#pollOptions button').forEach(btn => btn.disabled = true); // Voting buttons ko disable karna
+        document.getElementById('submitVote').disabled = true; // Submit button ko disable karna
+        
+        // Show dashboard section instead of opening new window
+        document.getElementById("votingSection").style.display = "none";
+        document.getElementById('dashboardSection').style.display = 'block'; // Dashboard section ko dikhana
+      }
+    };
+
+    socket.on('voteUpdate', (votes) => {
+      updateResults(votes); // Vote updates ko handle karna
+    });
+
+    function updateResults(votes) {
+      const resultsContainer = document.getElementById('resultsContainer');
+      resultsContainer.innerHTML = ''; // Results container ko clear karna
+      
+      const totalVotes = Object.values(votes).reduce((sum, count) => sum + count, 0); // Total votes calculate karna
+      
+      // Prepare data for charts
+      const labels = Object.keys(votes); // Labels ko get karna
+      const data = Object.values(votes); // Votes ko get karna
+      const colors = generateColors(labels.length); // Colors generate karna
+      
+      // Show vote percentages without progress bar
+      for (let option in votes) {
+        const percentage = totalVotes ? ((votes[option] / totalVotes) * 100).toFixed(1) : 0; // Percentage calculate karna
+        const resultDiv = document.createElement('div');
+        resultDiv.innerHTML = `<p>${option}: ${votes[option]} votes (${percentage}%)</p>`; // Result ko display karna
+        resultsContainer.appendChild(resultDiv); // Result ko container mein add karna
+      }
+
+      // Update charts
+      updateCharts(labels, data, colors); // Charts ko update karna
+    }
+
+    function generateColors(count) {
+      const colors = [];
+      for (let i = 0; i < count; i++) {
+        colors.push(`hsl(${(i * 360) / count}, 70%, 50%)`); // Colors generate karna
+      }
+      return colors; // Colors return karna
+    }
+
+    function updateCharts(labels, data, colors) {
+      const chartConfig = {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: colors // Chart configuration
+        }]
+      };
+
+      if (pieChart) {
+        pieChart.data = chartConfig; // Pie chart ko update karna
+        pieChart.update();
+      } else {
+        pieChart = new Chart(document.getElementById('pieChart'), {
+          type: 'pie',
+          data: chartConfig,
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Poll Results - Pie Chart' // Pie chart ka title
+              }
+            }
+          }
+        });
+      }
+
+      if (doughnutChart) {
+        doughnutChart.data = chartConfig; // Doughnut chart ko update karna
+        doughnutChart.update();
+      } else {
+        doughnutChart = new Chart(document.getElementById('doughnutChart'), {
+          type: 'doughnut',
+          data: chartConfig,
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Poll Results - Doughnut Chart' // Doughnut chart ka title
+              }
+            }
+          }
+        });
+      }
+    }
+
+    function updateChartType() {
+      const chartType = document.getElementById('chartTypeSelector').value; // Selected chart type ko get karna
+      const pieContainer = document.getElementById('pieChartContainer');
+      const doughnutContainer = document.getElementById('doughnutChartContainer');
+
+      if (chartType === 'pie') {
+        pieContainer.style.display = 'block'; // Pie chart ko dikhana
+        doughnutContainer.style.display = 'none'; // Doughnut chart ko hide karna
+      } else {
+        pieContainer.style.display = 'none'; // Pie chart ko hide karna
+        doughnutContainer.style.display = 'block'; // Doughnut chart ko dikhana
+      }
+    }
+  </script>
+
+<script>
+  document.getElementById("createPollLink").addEventListener("click", (e) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      e.preventDefault(); // Prevent navigation
+      alert("You must be logged in to create a poll.");
+      window.location.href = "login.html"; // Redirect to login page
+    } else {
+      window.location.href = "create.html"; // Redirect to create poll page
+    }
+  });
+</script>
+<script>
+  document.getElementById("viewPollLink").addEventListener("click", (e) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      e.preventDefault();
+      alert("You must be logged in to view polls.");
+      window.location.href = "login.html";
+    }
+  });
+</script>
+
+  
+</body>
+</html>
